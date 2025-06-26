@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Summer Success Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: A tabbed dashboard SPA. The default view shows "Today's Plan," dynamically displaying the current day's schedule and workouts for immediate actionability. Other tabs provide access to the "Full Week" workout table, an interactive "Nutrition" guide with collapsible sections, "Success Tips," and a new "Recipes" section. This structure was chosen to break down the dense information into manageable, context-specific views, making it far more user-friendly and less overwhelming for a user who needs quick, daily guidance rather than parsing a static document each time. -->
+    <!-- Visualization & Content Choices: 
+        - Daily Schedule: Goal: Inform/Organize -> Presentation: Side-by-side HTML tables (static schedule, dynamic workouts) -> Interaction: JS populates workout data based on current day -> Justification: Provides a focused, actionable view for the user's primary task.
+        - Weekly Workout Table: Goal: Organize -> Presentation: Responsive HTML table -> Interaction: None, reference only -> Justification: Allows for planning and reviewing the week as a whole.
+        - Workout Focus Chart: Goal: Compare/Inform -> Presentation: Chart.js Donut Chart -> Interaction: Hover tooltips -> Justification: Gives a quick visual summary of the training balance (Cardio vs. Strength vs. Recovery) for motivation and high-level understanding.
+        - Nutrition Guide: Goal: Inform -> Presentation: Accordion-style collapsible cards -> Interaction: Click to expand/collapse meal details -> Justification: Organizes a large amount of text into a clean, non-intimidating, and easily navigable format.
+        - Recipes: Goal: Inform/Teach -> Presentation: Accordion-style collapsible cards with recipe details -> Interaction: Click to expand/collapse recipes -> Justification: Provides practical, actionable cooking guidance in an organized, easy-to-digest format for someone learning to cook.
+        - Library/Method: Vanilla JS for logic, Tailwind for styling, Chart.js for visualization. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .tab-active {
+            border-color: #047857; /* emerald-600 */
+            color: #047857; /* emerald-600 */
+            background-color: #ecfdf5; /* emerald-50 */
+        }
+        .tab-inactive {
+            border-color: transparent;
+            color: #4b5563; /* gray-600 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 320px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-emerald-800">Summer Success Plan</h1>
+            <p class="text-lg text-stone-600 mt-2">Your interactive guide to building strength, speed, and skills.</p>
+        </header>
+
+        <nav class="mb-8 border-b border-stone-200">
+            <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="nav-tabs">
+                <li class="mr-2">
+                    <button class="nav-tab inline-block p-4 border-b-2 rounded-t-lg" data-view="today">🗓️ Today's Plan</button>
+                </li>
+                <li class="mr-2">
+                    <button class="nav-tab inline-block p-4 border-b-2 rounded-t-lg" data-view="week">📅 Full Week</button>
+                </li>
+                <li class="mr-2">
+                    <button class="nav-tab inline-block p-4 border-b-2 rounded-t-lg" data-view="nutrition">🍎 Nutrition</button>
+                </li>
+                <li class="mr-2">
+                    <button class="nav-tab inline-block p-4 border-b-2 rounded-t-lg" data-view="recipes">🍳 Recipes</button>
+                </li>
+                <li>
+                    <button class="nav-tab inline-block p-4 border-b-2 rounded-t-lg" data-view="tips">💡 Success Tips</button>
+                </li>
+            </ul>
+        </nav>
+
+        <main id="app-content">
+            <!-- Today's Plan View -->
+            <div id="view-today" class="view-content">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                    <div class="flex justify-between items-center mb-6">
+                         <h2 class="text-2xl md:text-3xl font-bold text-emerald-700">Today's Focus: <span id="today-day-name"></span></h2>
+                         <select id="day-selector" class="border border-stone-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="0">Sunday</option>
+                        </select>
+                    </div>
+                    <p class="mb-8 text-stone-600">This is your main schedule for the day. Below that, you'll find the specific workouts scheduled for today. Let's get after it!</p>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-xl font-semibold mb-4 text-stone-700">Daily Schedule</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left text-stone-600">
+                                    <thead class="text-xs text-stone-700 uppercase bg-stone-100">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3">Time</th>
+                                            <th scope="col" class="px-4 py-3">Activity</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="daily-schedule-body">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div id="today-workout-container">
+                             <h3 class="text-xl font-semibold mb-4 text-stone-700">Today's Workouts</h3>
+                             <div id="morning-workout" class="mb-6"></div>
+                             <div id="afternoon-workout"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full Week View -->
+            <div id="view-week" class="view-content hidden">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                    <h2 class="text-2xl md:text-3xl font-bold text-emerald-700 mb-4">Full Weekly Plan</h2>
+                    <p class="mb-8 text-stone-600">Here's the complete workout schedule for the entire week. Use this to plan ahead and see how your training progresses. Below the schedule, a chart visualizes your training focus for the week.</p>
+                    <div class="overflow-x-auto mb-10">
+                        <table class="w-full text-sm text-left text-stone-600" id="weekly-workout-table"></table>
+                    </div>
+                    <h3 class="text-xl md:text-2xl font-bold text-center text-emerald-700 mb-4">Weekly Training Focus</h3>
+                     <div class="chart-container">
+                        <canvas id="workoutFocusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nutrition View -->
+            <div id="view-nutrition" class="view-content hidden">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                     <h2 class="text-2xl md:text-3xl font-bold text-emerald-700 mb-4">Nutrition Guide</h2>
+                     <p class="mb-6 text-stone-600">Fueling your body correctly is just as important as the workouts themselves. Use this guide to help you make smart food choices. Click on any meal type to see examples and goals.</p>
+                     <div id="nutrition-accordion" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- Recipes View -->
+            <div id="view-recipes" class="view-content hidden">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                     <h2 class="text-2xl md:text-3xl font-bold text-emerald-700 mb-4">Recipe Suggestions</h2>
+                     <p class="mb-6 text-stone-600">Learning to cook is a powerful skill! Here are some simple, healthy meal and snack ideas to get you started. Click on a category to explore the recipes.</p>
+                     <div id="recipes-accordion" class="space-y-4"></div>
+                </div>
+            </div>
+            
+            <!-- Tips View -->
+            <div id="view-tips" class="view-content hidden">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                     <h2 class="text-2xl md:text-3xl font-bold text-emerald-700 mb-4">Tips for Success</h2>
+                     <p class="mb-6 text-stone-600">Keep these key principles in mind throughout the summer to stay motivated, avoid injury, and make the most of your hard work.</p>
+                     <ul id="success-tips-list" class="space-y-4 list-none"></ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const AppData = {
+            dailySchedule: [
+                { time: "8:00 - 8:30 AM", activity: "Wake Up & Hydrate" },
+                { time: "8:30 - 9:00 AM", activity: "Breakfast Fuel" },
+                { time: "9:00 - 10:30 AM", activity: "Morning Workout" },
+                { time: "10:30 - 11:00 AM", activity: "Post-Workout & Snack" },
+                { time: "11:00 AM - 12:30 PM", activity: "Academic Block 1 (Spanish)" },
+                { time: "12:30 - 1:00 PM", activity: "Lunch" },
+                { time: "1:00 - 2:30 PM", activity: "Afternoon Workout" },
+                { time: "2:30 - 3:00 PM", activity: "Post-Workout & Snack" },
+                { time: "3:00 - 4:00 PM", activity: "Reading/Personal Time" },
+                { time: "4:00 - 5:00 PM", activity: "Learning to Cook" },
+                { time: "5:00 - 6:00 PM", activity: "Academic Block 2 (SAT Prep)" },
+                { time: "6:30 - 7:30 PM", activity: "Dinner" },
+                { time: "7:30 - 9:00 PM", activity: "Wind Down / Flex Time" },
+                { time: "10:00 PM", activity: "Lights Out!" },
+            ],
+            weeklyWorkouts: {
+                "1": {
+                    day: "Monday",
+                    morning: { title: "Long Slow Distance (LSD) Run", details: "30-40 min easy, conversational pace.", goal: "Build aerobic base." },
+                    afternoon: { title: "Upper Body Strength & Pitching", details: "Strength: 3x10-15 reps (Push-ups, Band Rows, Overhead Press, Dips, Rotator Cuff, Plank). Pitching: 15-20 min (Long toss, Flat ground pitching).", goal: "Arm, shoulder, and core strength." }
+                },
+                "2": {
+                    day: "Tuesday",
+                    morning: { title: "Tempo Run", details: "5-10 min warm-up, 20-30 min 'comfortably hard', 5-10 min cool-down.", goal: "Improve lactate threshold." },
+                    afternoon: { title: "Lower Body Strength & Agility", details: "Strength: 3x10-15 reps (Squats, Lunges, Glute Bridges, Calf Raises, Step-Ups). Agility: 15-20 min (Ladder drills, Cone drills, Sprints).", goal: "Leg power and quickness." }
+                },
+                "3": {
+                    day: "Wednesday",
+                    morning: { title: "Active Recovery", details: "30-45 min easy walk, bike, or swim.", goal: "Promote blood flow, aid recovery." },
+                    afternoon: { title: "Core & Mobility", details: "Core: 3x15-20 reps/holds (Planks, Bird-Dog, Dead Bug, etc.). Mobility: 15-20 min (Foam rolling, Deep stretches).", goal: "Strengthen core, improve flexibility." }
+                },
+                "4": {
+                    day: "Thursday",
+                    morning: { title: "Interval Training", details: "10 min warm-up, 6-8 reps: 1-2 min fast (8/10), 1-2 min recovery. 10 min cool-down.", goal: "Improve speed and VO2 max." },
+                    afternoon: { title: "Full Body Strength (Lighter) & Pitching", details: "Strength: 2-3x10-15 reps (Squats, Rows, Push-ups, Lunges, Med Ball Slams). Pitching: 15-20 min (Target practice, Mechanics drill).", goal: "Maintain strength, reinforce mechanics." }
+                },
+                "5": {
+                    day: "Friday",
+                    morning: { title: "Fartlek Run ('Speed Play')", details: "5-10 min warm-up, 30-35 min varied pace (sprint to tree, jog, etc.), 5-10 min cool-down.", goal: "Develop speed and endurance." },
+                    afternoon: { title: "Baseball Skill Work", details: "Fielding drills, Hitting (tee/soft toss), Very light throwing/catch.", goal: "Improve general baseball skills." }
+                },
+                "6": {
+                    day: "Saturday",
+                    morning: { title: "Longer Easy Run", details: "40-45 min easy, conversational pace.", goal: "Build endurance, mental toughness." },
+                    afternoon: { title: "Flexibility & Deep Stretching", details: "30-45 min deep static stretches (hold each for 30-60 sec).", goal: "Improve range of motion, prevent injuries." }
+                },
+                "0": {
+                    day: "Sunday",
+                    morning: { title: "REST DAY!", details: "Allow your body to fully recover and rebuild.", goal: "Recovery is crucial for growth." },
+                    afternoon: { title: "REST DAY!", details: "Relax, spend time with family/friends, and get ready for the week ahead.", goal: "Mental and physical reset." }
+                }
+            },
+            nutrition: [
+                 { title: "Key Principles", content: ["<strong>Hydration is #1:</strong> Drink water constantly, aim for 8-10+ glasses.", "<strong>Balanced Meals:</strong> Mix complex carbs, lean protein, and healthy fats.", "<strong>Eat Often:</strong> 3 meals and 2-3 snacks to keep energy stable.", "<strong>Whole Foods:</strong> Focus on unprocessed foods. Limit sugar and fried foods."] },
+                 { title: "Breakfast", content: ["<strong>Goal:</strong> Complex carbs for sustained energy, protein for muscle repair.", "<strong>Examples:</strong> Oatmeal with berries & nuts; Scrambled eggs with whole-wheat toast & avocado; Whole-grain cereal with milk & fruit."] },
+                 { title: "Lunch", content: ["<strong>Goal:</strong> Sustained energy, continued protein intake.", "<strong>Examples:</strong> Turkey/chicken sandwich on whole-wheat; Large salad with grilled salmon or chickpeas; Leftover dinner."] },
+                 { title: "Dinner", content: ["<strong>Goal:</strong> Major nutrient intake for muscle repair and overnight recovery.", "<strong>Examples:</strong> Grilled chicken/fish with roasted veggies and sweet potato/brown rice; Lean ground beef/turkey stir-fry with veggies."] },
+                 { title: "Snacks", content: ["<strong>Goal:</strong> Replenish energy and provide protein for recovery.", "<strong>Examples:</strong> Greek yogurt with granola; Protein shake; Hard-boiled eggs; Banana with peanut butter; Handful of almonds/walnuts."] },
+            ],
+            recipes: [
+                {
+                    category: "🍳 Simple Breakfasts",
+                    suggestions: [
+                        { name: "Overnight Oats", ingredients: ["1/2 cup rolled oats", "1 cup milk (dairy or non-dairy)", "1 tbsp chia seeds", "1/2 cup berries", "1 tsp honey/maple syrup (optional)"], instructions: "Combine all ingredients in a jar. Stir well. Refrigerate overnight. Top with more fruit in the morning." },
+                        { name: "Quick Egg & Avocado Toast", ingredients: ["2 slices whole-wheat toast", "2 eggs", "1/2 avocado", "Salt, pepper, red pepper flakes (optional)"], instructions: "Toast bread. Scramble or fry eggs. Mash avocado onto toast, season. Top with eggs." }
+                    ]
+                },
+                {
+                    category: "🍲 Healthy Lunches",
+                    suggestions: [
+                        { name: "Tuna/Chicken Salad Wrap", ingredients: ["1 can tuna (in water, drained) or cooked chicken, shredded", "2 tbsp Greek yogurt or light mayo", "1 celery stalk, diced", "1/4 cup chopped grapes/apple (optional)", "Whole-wheat tortilla or large lettuce wraps"], instructions: "Mix tuna/chicken with yogurt/mayo, celery, and fruit. Spread on wrap, roll up." },
+                        { name: "Basic Veggie & Chicken Stir-fry", ingredients: ["4 oz chicken breast, sliced", "1 cup mixed stir-fry veggies (broccoli, carrots, bell peppers)", "1 tbsp olive oil", "2 tbsp low-sodium soy sauce or tamari", "1/2 cup cooked brown rice"], instructions: "Heat oil in pan. Cook chicken until done. Add veggies, stir-fry until tender-crisp. Add soy sauce. Serve over brown rice." }
+                    ]
+                },
+                {
+                    category: "🍽️ Balanced Dinners",
+                    suggestions: [
+                        { name: "Sheet Pan Chicken & Veggies", ingredients: ["6 oz chicken breast, cubed", "1 cup chopped potatoes", "1 cup chopped broccoli florets", "1 tbsp olive oil", "Salt, pepper, garlic powder, paprika"], instructions: "Preheat oven to 400°F (200°C). Toss chicken and veggies with oil and seasonings on a sheet pan. Roast for 20-25 minutes, or until chicken is cooked through and veggies are tender." },
+                        { name: "Simple Turkey Meatballs with Pasta", ingredients: ["4 oz lean ground turkey", "1/4 cup breadcrumbs", "1 egg", "Salt, pepper, Italian seasoning", "1/2 cup pasta sauce", "1 cup whole-wheat pasta, cooked"], instructions: "Mix turkey, breadcrumbs, egg, and seasonings. Form small meatballs. Brown meatballs in a pan, then simmer in pasta sauce until cooked. Serve over pasta." }
+                    ]
+                },
+                {
+                    category: "🍎 Quick Snacks",
+                    suggestions: [
+                        { name: "Apple Slices & Peanut Butter", ingredients: ["1 apple, sliced", "2 tbsp peanut butter"], instructions: "Slice apple. Spread peanut butter on slices." },
+                        { name: "Greek Yogurt with Berries & Granola", ingredients: ["1 cup plain Greek yogurt", "1/2 cup mixed berries", "1/4 cup granola"], instructions: "Layer ingredients in a bowl." }
+                    ]
+                }
+            ],
+            successTips: [
+                { icon: '👂', title: 'Listen to Your Body', text: 'If you feel overly tired, sore, or feel pain, take an extra rest day. Pushing too hard leads to injury.' },
+                { icon: '😴', title: 'Sleep is Crucial', text: 'Aim for 8-9 hours of sleep. This is when your body recovers and grows.' },
+                { icon: '📈', title: 'Consistency over Intensity', text: 'It\'s better to stick to the plan moderately than to do one super-hard workout and burn out.' },
+                { icon: '🎯', title: 'Set Small Goals', text: 'Instead of just "get fit," aim for "run 3 miles without stopping" or "do 20 push-ups."' },
+                { icon: '🔄', title: 'Stay Flexible', text: 'Life happens! If you miss a workout or study session, don\'t sweat it. Just pick it up again the next day.' },
+                { icon: '😄', title: 'Have Fun!', text: 'This is summer. Enjoy the process of getting stronger and smarter.' }
+            ]
+        };
+
+        const navTabs = document.getElementById('nav-tabs');
+        const contentDivs = document.querySelectorAll('.view-content');
+        const daySelector = document.getElementById('day-selector');
+        const todayDayName = document.getElementById('today-day-name');
+
+        function switchView(viewId) {
+            contentDivs.forEach(div => div.classList.add('hidden'));
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                if (tab.dataset.view === viewId) {
+                    tab.classList.add('tab-active');
+                    tab.classList.remove('tab-inactive');
+                } else {
+                    tab.classList.add('tab-inactive');
+                    tab.classList.remove('tab-active');
+                }
+            });
+        }
+
+        function renderTodayView(dayIndex) {
+            const dayData = AppData.weeklyWorkouts[dayIndex];
+            todayDayName.textContent = dayData.day;
+            daySelector.value = dayIndex;
+            
+            const morningWorkoutContainer = document.getElementById('morning-workout');
+            const afternoonWorkoutContainer = document.getElementById('afternoon-workout');
+
+            morningWorkoutContainer.innerHTML = createWorkoutCard('🏃‍♂️ Morning', dayData.morning);
+            afternoonWorkoutContainer.innerHTML = createWorkoutCard('⚾ Afternoon', dayData.afternoon);
+        }
+
+        function createWorkoutCard(header, data) {
+            return `
+                <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 h-full">
+                    <h4 class="font-bold text-lg text-emerald-800">${header}: ${data.title}</h4>
+                    <p class="text-sm text-emerald-700 mt-1 mb-2"><strong>Goal:</strong> ${data.goal}</p>
+                    <p class="text-sm text-stone-600">${data.details}</p>
+                </div>
+            `;
+        }
+
+        function populateDailySchedule() {
+            const tbody = document.getElementById('daily-schedule-body');
+            tbody.innerHTML = AppData.dailySchedule.map((item, index) => `
+                <tr class="${index % 2 === 0 ? 'bg-white' : 'bg-stone-50'} border-b border-stone-200">
+                    <td class="px-4 py-2 font-medium text-stone-900">${item.time}</td>
+                    <td class="px-4 py-2">${item.activity}</td>
+                </tr>
+            `).join('');
+        }
+
+        function populateWeeklyTable() {
+            const table = document.getElementById('weekly-workout-table');
+            let html = `
+                <thead class="text-xs text-stone-700 uppercase bg-stone-100">
+                    <tr>
+                        <th class="px-4 py-3">Day</th>
+                        <th class="px-4 py-3">Morning Workout (XC Focus)</th>
+                        <th class="px-4 py-3">Afternoon Workout (Baseball/Strength)</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            for(let i = 1; i <= 6; i++) {
+                const day = AppData.weeklyWorkouts[i];
+                html += createTableRow(day);
+            }
+            html += createTableRow(AppData.weeklyWorkouts[0]); // Sunday
+            html += `</tbody>`;
+            table.innerHTML = html;
+
+            function createTableRow(dayData) {
+                 return `
+                    <tr class="bg-white border-b border-stone-200">
+                        <td class="px-4 py-4 font-bold text-stone-900">${dayData.day}</td>
+                        <td class="px-4 py-4">
+                            <p class="font-semibold">${dayData.morning.title}</p>
+                            <p class="text-xs text-stone-600">${dayData.morning.details}</p>
+                        </td>
+                        <td class="px-4 py-4">
+                            <p class="font-semibold">${dayData.afternoon.title}</p>
+                            <p class="text-xs text-stone-600">${dayData.afternoon.details}</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        function populateNutrition() {
+            const accordion = document.getElementById('nutrition-accordion');
+            accordion.innerHTML = AppData.nutrition.map((item, index) => `
+                <div class="border border-stone-200 rounded-lg">
+                    <button class="accordion-toggle flex justify-between items-center w-full p-4 text-left font-semibold text-stone-800 bg-stone-100 hover:bg-stone-200 focus:outline-none">
+                        <span>${item.title}</span>
+                        <span>▼</span>
+                    </button>
+                    <div class="accordion-content hidden p-4 border-t border-stone-200">
+                        <ul class="list-disc list-inside space-y-2 text-stone-600">
+                            ${item.content.map(point => `<li>${point}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.accordion-toggle').forEach(button => {
+                button.addEventListener('click', () => {
+                    const content = button.nextElementSibling;
+                    content.classList.toggle('hidden');
+                    const icon = button.querySelector('span:last-child');
+                    icon.textContent = content.classList.contains('hidden') ? '▼' : '▲';
+                });
+            });
+        }
+
+        function populateRecipes() {
+            const recipesAccordion = document.getElementById('recipes-accordion');
+            recipesAccordion.innerHTML = AppData.recipes.map((category, index) => `
+                <div class="border border-stone-200 rounded-lg">
+                    <button class="accordion-toggle flex justify-between items-center w-full p-4 text-left font-semibold text-stone-800 bg-stone-100 hover:bg-stone-200 focus:outline-none">
+                        <span>${category.category}</span>
+                        <span>▼</span>
+                    </button>
+                    <div class="accordion-content hidden p-4 border-t border-stone-200 space-y-4">
+                        ${category.suggestions.map(recipe => `
+                            <div class="border border-emerald-100 bg-emerald-50 rounded-lg p-3">
+                                <h5 class="font-bold text-emerald-700 mb-1">${recipe.name}</h5>
+                                <p class="text-sm text-stone-600 mb-2"><strong>Ingredients:</strong> ${recipe.ingredients.join(', ')}</p>
+                                <p class="text-sm text-stone-600"><strong>Instructions:</strong> ${recipe.instructions}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('#recipes-accordion .accordion-toggle').forEach(button => {
+                button.addEventListener('click', () => {
+                    const content = button.nextElementSibling;
+                    content.classList.toggle('hidden');
+                    const icon = button.querySelector('span:last-child');
+                    icon.textContent = content.classList.contains('hidden') ? '▼' : '▲';
+                });
+            });
+        }
+
+        function populateSuccessTips() {
+            const list = document.getElementById('success-tips-list');
+            list.innerHTML = AppData.successTips.map(tip => `
+                <li class="flex items-start bg-stone-100 p-4 rounded-lg border border-stone-200">
+                    <span class="text-2xl mr-4">${tip.icon}</span>
+                    <div>
+                        <h4 class="font-bold text-stone-800">${tip.title}</h4>
+                        <p class="text-stone-600">${tip.text}</p>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        function renderWorkoutFocusChart() {
+            const ctx = document.getElementById('workoutFocusChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Cardio/Endurance', 'Strength & Power', 'Skills & Mobility', 'Recovery & Rest'],
+                    datasets: [{
+                        label: 'Weekly Focus',
+                        data: [5, 4, 3, 2],
+                        backgroundColor: [
+                            '#10b981', // emerald-500
+                            '#f97316', // orange-500
+                            '#3b82f6', // blue-500
+                            '#a8a29e'  // stone-400
+                        ],
+                        borderColor: '#ffffff',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + ' sessions';
+                                    }
+                                    return ' ' + label;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        navTabs.addEventListener('click', (e) => {
+            if (e.target.classList.contains('nav-tab')) {
+                switchView(e.target.dataset.view);
+            }
+        });
+        
+        daySelector.addEventListener('change', (e) => {
+            renderTodayView(e.target.value);
+        });
+
+        function initializeApp() {
+            const today = new Date();
+            const dayOfWeek = today.getDay(); 
+
+            populateDailySchedule();
+            populateWeeklyTable();
+            populateNutrition();
+            populateRecipes(); // New call
+            populateSuccessTips();
+            renderWorkoutFocusChart();
+
+            renderTodayView(dayOfWeek);
+            switchView('today');
+        }
+
+        initializeApp();
+    });
+</script>
+
+</body>
+</html>
